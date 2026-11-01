@@ -1,6 +1,5 @@
-
 import 'package:flutter/material.dart';
-import '../core/theme/app_theme.dart';
+
 
 class BalanceCard extends StatelessWidget {
   final double balance;
@@ -89,7 +88,7 @@ class BalanceCard extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 17,
-          backgroundColor: Colors.white.withOpacity(0.15),
+          backgroundColor: Colors.white.withValues(alpha: 0.15),
           child: Icon(icon, size: 17, color: Colors.white),
         ),
         const SizedBox(width: 9),

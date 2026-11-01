@@ -72,7 +72,7 @@ class SpendingChart extends StatelessWidget {
                     width: 16,
                     color: index == 5
                         ? AppColors.primary
-                        : AppColors.primary.withOpacity(0.35),
+                        : AppColors.primary.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ],

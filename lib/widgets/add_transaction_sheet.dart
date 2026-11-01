@@ -38,7 +38,8 @@ class _AddTransactionSheetState
     super.dispose();
   }
 
-  void saveTransaction() {
+
+  Future<void> saveTransaction() async {
     final title = titleController.text.trim();
     final amount = double.tryParse(amountController.text.trim());
 
@@ -60,11 +61,25 @@ class _AddTransactionSheetState
       isIncome: isIncome,
     );
 
-    ref.read(transactionsProvider.notifier)
-        .addTransaction(transaction);
+    try {
+      await ref
+          .read(transactionsProvider.notifier)
+          .addTransaction(transaction);
 
-    Navigator.pop(context);
+      if (!mounted) return;
+
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save transaction: $e'),
+        ),
+      );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +217,7 @@ class _AddTransactionSheetState
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary.withOpacity(0.15)
+              ? AppColors.primary.withValues(alpha: 0.15)
               : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(

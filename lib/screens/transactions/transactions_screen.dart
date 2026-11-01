@@ -19,21 +19,45 @@ class _TransactionsScreenState
   String searchQuery = '';
   String selectedFilter = 'All';
 
+  Future<void> _deleteTransaction(String id) async {
+    try {
+      await ref
+          .read(transactionsProvider.notifier)
+          .deleteTransaction(id);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Transaction deleted'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete transaction: $e'),
+        ),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
     final transactions = ref.watch(transactionsProvider);
 
     final filteredTransactions = transactions.where((item) {
-      final matchesSearch = item.title
-          .toLowerCase()
-          .contains(searchQuery.toLowerCase()) ||
-          item.category
-              .toLowerCase()
-              .contains(searchQuery.toLowerCase());
+      final query = searchQuery.toLowerCase();
 
-      final matchesFilter = selectedFilter == 'All' ||
-          (selectedFilter == 'Income' && item.isIncome) ||
-          (selectedFilter == 'Expense' && !item.isIncome);
+      final matchesSearch =
+          item.title.toLowerCase().contains(query) ||
+              item.category.toLowerCase().contains(query);
+
+      final matchesFilter =
+          selectedFilter == 'All' ||
+              (selectedFilter == 'Income' && item.isIncome) ||
+              (selectedFilter == 'Expense' && !item.isIncome);
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -104,21 +128,13 @@ class _TransactionsScreenState
                   : ListView.builder(
                 itemCount: filteredTransactions.length,
                 itemBuilder: (context, index) {
-                  final transaction = filteredTransactions[index];
+                  final transaction =
+                  filteredTransactions[index];
 
                   return TransactionTile(
                     transaction: transaction,
-                    onDelete: () {
-                      ref
-                          .read(transactionsProvider.notifier)
-                          .deleteTransaction(transaction.id);
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Transaction deleted'),
-                        ),
-                      );
-                    },
+                    onDelete: () =>
+                        _deleteTransaction(transaction.id),
                   );
                 },
               ),

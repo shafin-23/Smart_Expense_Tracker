@@ -52,7 +52,7 @@ class TransactionTile extends StatelessWidget {
               color: (isIncome
                   ? AppColors.income
                   : AppColors.expense)
-                  .withOpacity(0.12),
+                  .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(

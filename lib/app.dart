@@ -1,6 +1,4 @@
-import 'core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-
 import 'core/theme/app_theme.dart';
 import 'screens/dashboard/home_screen.dart';
 import 'screens/transactions/transactions_screen.dart';
