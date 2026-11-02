@@ -14,3 +14,6 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 final transactionDaoProvider = Provider((ref) {
   return ref.watch(databaseProvider).transactionDao;
 });
+final budgetDaoProvider = Provider((ref) {
+  return ref.watch(databaseProvider).budgetDao;
+});
