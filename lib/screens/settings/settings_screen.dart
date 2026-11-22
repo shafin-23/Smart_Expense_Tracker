@@ -1,165 +1,499 @@
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/app_preferences_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../services/notification_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'Settings',
-            style: TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
+  ConsumerState<SettingsScreen> createState() =>
+      _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  String _currency = 'BDT (৳)';
+  String _name = '';
+
+  bool _notificationsEnabled = false;
+  bool _isUpdatingNotifications = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) return;
+
+    final appPreferences = ref.read(appPreferencesProvider);
+
+    setState(() {
+      _notificationsEnabled =
+          prefs.getBool('notifications_enabled') ?? false;
+
+      _currency = appPreferences.currency;
+      _name = appPreferences.profileName;
+    });
+  }
+
+  Future<void> _changeCurrency() async {
+    const currencies = [
+      'BDT (৳)',
+      'USD (\$)',
+      'EUR (€)',
+      'GBP (£)',
+      'INR (₹)',
+    ];
+
+    final selectedCurrency = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Select Currency'),
+          content: RadioGroup<String>(
+            groupValue: _currency,
+            onChanged: (value) {
+              if (value != null) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: currencies.map((currency) {
+                return RadioListTile<String>(
+                  title: Text(currency),
+                  value: currency,
+                );
+              }).toList(),
             ),
           ),
+        );
+      },
+    );
 
-          const SizedBox(height: 25),
+    if (selectedCurrency == null || !mounted) return;
 
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.surfaceLight,
-                  child: Icon(
-                    Icons.person,
-                    size: 30,
-                    color: AppColors.primary,
-                  ),
-                ),
-                SizedBox(width: 15),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Shafin',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Personal Account',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                Spacer(),
-                Icon(
-                  Icons.edit_outlined,
-                  color: AppColors.textSecondary,
-                ),
-              ],
+    await ref
+        .read(appPreferencesProvider.notifier)
+        .updateCurrency(selectedCurrency);
+
+    if (!mounted) return;
+
+    setState(() {
+      _currency = selectedCurrency;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Currency updated successfully'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _editProfile() async {
+    final controller = TextEditingController(text: _name);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Profile'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 30,
+            decoration: const InputDecoration(
+              labelText: 'Your Name',
+              hintText: 'Enter your name',
+              prefixIcon: Icon(Icons.person_outline),
             ),
           ),
-
-          const SizedBox(height: 28),
-
-          const Text(
-            'Preferences',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
             ),
-          ),
+            ElevatedButton(
+              onPressed: () {
+                final value = controller.text.trim();
 
-          const SizedBox(height: 12),
-
-          _settingTile(
-            Icons.dark_mode_outlined,
-            'Appearance',
-            'Dark Mode',
-          ),
-
-          _settingTile(
-            Icons.currency_exchange,
-            'Currency',
-            'BDT (৳)',
-          ),
-
-          _settingTile(
-            Icons.notifications_none,
-            'Notifications',
-            'Manage notifications',
-          ),
-
-          const SizedBox(height: 25),
-
-          const Text(
-            'Account',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+                if (value.isNotEmpty) {
+                  Navigator.pop(dialogContext, value);
+                }
+              },
+              child: const Text('Save'),
             ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (newName == null || !mounted) return;
+
+    await ref
+        .read(appPreferencesProvider.notifier)
+        .updateProfileName(newName);
+
+    if (!mounted) return;
+
+    setState(() {
+      _name = newName;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Profile updated successfully'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    if (_isUpdatingNotifications) return;
+
+    setState(() {
+      _isUpdatingNotifications = true;
+    });
+
+    try {
+      if (value) {
+        final enabled =
+        await NotificationService.enableNotifications();
+
+        if (!enabled) {
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Notification permission was not granted.',
+              ),
+            ),
+          );
+
+          return;
+        }
+      } else {
+        await NotificationService.disableNotifications();
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setBool('notifications_enabled', value);
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificationsEnabled = value;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? 'Notifications enabled'
+                : 'Notifications disabled',
           ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
 
-          const SizedBox(height: 12),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notification error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingNotifications = false;
+        });
+      }
+    }
+  }
 
-          _settingTile(
-            Icons.lock_outline,
-            'Privacy & Security',
-            'Manage your account',
-          ),
-
-          _settingTile(
-            Icons.help_outline,
-            'Help & Support',
-            'Get assistance',
-          ),
-
-          _settingTile(
-            Icons.info_outline,
-            'About App',
-            'Version 1.0.0',
+  void _showPrivacyPolicy() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const Text(
+          'Smart Expense Tracker stores your financial records '
+              'locally on your device. Your personal expense data '
+              'is used to display your financial information and '
+              'generate reports.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
   }
 
-  Widget _settingTile(
-      IconData icon,
-      String title,
-      String subtitle,
-      ) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-      leading: Container(
-        height: 42,
-        width: 42,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Help & Support'),
+        content: const Text(
+          'How to use Smart Expense Tracker:\n\n'
+              '1. Add your income and expenses.\n'
+              '2. Track your balance from Dashboard.\n'
+              '3. View spending activity in Analytics.\n'
+              '4. Set monthly budgets.\n'
+              '5. Manage your preferences from Settings.',
         ),
-        child: Icon(icon, color: AppColors.primary),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
       ),
-      title: Text(title),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 12,
+    );
+  }
+
+  void _showAbout() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Smart Expense Tracker',
+      applicationVersion: '1.0.0',
+      applicationIcon: const Icon(
+        Icons.account_balance_wallet,
+        size: 40,
+        color: AppColors.primary,
+      ),
+      applicationLegalese: '© 2026 Smart Expense Tracker',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preferences = ref.watch(appPreferencesProvider);
+    final themeMode = ref.watch(themeProvider);
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Settings',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            const Text(
+              'Manage your account and preferences',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // Profile Section
+            _sectionTitle('Profile'),
+
+            const SizedBox(height: 12),
+
+            _settingsCard(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.surfaceLight,
+                  child: Icon(
+                    Icons.person_outline,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: Text(
+                  preferences.profileName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text('Profile Name'),
+                trailing: const Icon(Icons.edit_outlined),
+                onTap: _editProfile,
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // Preferences Section
+            _sectionTitle('Preferences'),
+
+            const SizedBox(height: 12),
+
+            _settingsCard(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      Icons.currency_exchange,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('Currency'),
+                    subtitle: Text(preferences.currency),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _changeCurrency,
+                  ),
+
+                  const Divider(height: 1),
+
+                  SwitchListTile(
+                    secondary: const Icon(
+                      Icons.dark_mode_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('Dark Mode'),
+                    subtitle: const Text(
+                      'Change app appearance',
+                    ),
+                    value: themeMode == ThemeMode.dark,
+                    onChanged: (value) {
+                      ref
+                          .read(themeProvider.notifier)
+                          .toggleTheme(value);
+                    },
+                  ),
+
+                  const Divider(height: 1),
+
+                  SwitchListTile(
+                    secondary: const Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('Notifications'),
+                    subtitle: const Text(
+                      'Daily expense reminders',
+                    ),
+                    value: _notificationsEnabled,
+                    onChanged: _isUpdatingNotifications
+                        ? null
+                        : _toggleNotifications,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // General Section
+            _sectionTitle('General'),
+
+            const SizedBox(height: 12),
+
+            _settingsCard(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      Icons.privacy_tip_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('Privacy Policy'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showPrivacyPolicy,
+                  ),
+
+                  const Divider(height: 1),
+
+                  ListTile(
+                    leading: const Icon(
+                      Icons.help_outline,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('Help & Support'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showHelp,
+                  ),
+
+                  const Divider(height: 1),
+
+                  ListTile(
+                    leading: const Icon(
+                      Icons.info_outline,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text('About'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showAbout,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            Center(
+              child: Text(
+                'Smart Expense Tracker v1.0.0',
+                style: TextStyle(
+                  color: AppColors.textSecondary.withValues(
+                    alpha: 0.7,
+                  ),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+          ],
         ),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: AppColors.textSecondary,
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.bold,
       ),
+    );
+  }
+
+  Widget _settingsCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.textSecondary.withValues(
+            alpha: 0.12,
+          ),
+        ),
+      ),
+      child: child,
     );
   }
 }

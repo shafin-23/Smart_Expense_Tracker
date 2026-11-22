@@ -1,10 +1,11 @@
 
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/app_preferences_provider.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -12,6 +13,8 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactions = ref.watch(transactionsProvider);
+    final preferences = ref.watch(appPreferencesProvider);
+    final currencySymbol = preferences.currencySymbol;
 
     final expenses =
     transactions.where((item) => !item.isIncome).toList();
@@ -82,7 +85,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    '৳${totalExpense.toStringAsFixed(0)}',
+                    '$currencySymbol${totalExpense.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.bold,
@@ -109,7 +112,8 @@ class AnalyticsScreen extends ConsumerWidget {
                                 value: entry.value,
                                 color: colors[index % colors.length],
                                 radius: 48,
-                                title: '${percentage.toStringAsFixed(0)}%',
+                                title:
+                                '${percentage.toStringAsFixed(0)}%',
                                 titleStyle: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -169,17 +173,24 @@ class AnalyticsScreen extends ConsumerWidget {
                             shape: BoxShape.circle,
                           ),
                         ),
+
                         const SizedBox(width: 10),
-                        Expanded(child: Text(entry.key)),
+
+                        Expanded(
+                          child: Text(entry.key),
+                        ),
+
                         Text(
-                          '৳${entry.value.toStringAsFixed(0)}',
+                          '$currencySymbol${entry.value.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 9),
+
                     LinearProgressIndicator(
                       value: percentage,
                       minHeight: 6,

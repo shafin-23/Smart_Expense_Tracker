@@ -1,9 +1,12 @@
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../core/theme/app_theme.dart';
 import '../models/transaction_model.dart';
+import '../providers/app_preferences_provider.dart';
 
-class TransactionTile extends StatelessWidget {
+class TransactionTile extends ConsumerWidget {
   final TransactionModel transaction;
   final VoidCallback? onDelete;
 
@@ -33,8 +36,11 @@ class TransactionTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = transaction.isIncome;
+
+    final preferences = ref.watch(appPreferencesProvider);
+    final currencySymbol = preferences.currencySymbol;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -76,7 +82,9 @@ class TransactionTile extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
+
                 const SizedBox(height: 5),
+
                 Text(
                   '${transaction.category} • '
                       '${transaction.date.day}/${transaction.date.month}',
@@ -90,7 +98,8 @@ class TransactionTile extends StatelessWidget {
           ),
 
           Text(
-            '${isIncome ? '+' : '-'}৳'
+            '${isIncome ? '+' : '-'}'
+                '$currencySymbol'
                 '${transaction.amount.toStringAsFixed(0)}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
@@ -103,6 +112,7 @@ class TransactionTile extends StatelessWidget {
 
           if (onDelete != null) ...[
             const SizedBox(width: 5),
+
             IconButton(
               onPressed: onDelete,
               icon: const Icon(

@@ -1,21 +1,30 @@
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'core/theme/app_theme.dart';
+import 'providers/theme_provider.dart';
+
 import 'screens/dashboard/home_screen.dart';
+import 'screens/transactions/add_transaction_screen.dart';
 import 'screens/transactions/transactions_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
 import 'screens/budget/budget_screen.dart';
 import 'screens/settings/settings_screen.dart';
-import 'widgets/add_transaction_sheet.dart';
 
-class SmartExpenseApp extends StatelessWidget {
+class SmartExpenseApp extends ConsumerWidget {
   const SmartExpenseApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Smart Expense Tracker',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       home: const MainNavigation(),
     );
   }
@@ -39,17 +48,12 @@ class _MainNavigationState extends State<MainNavigation> {
     SettingsScreen(),
   ];
 
-  void openAddTransaction() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(25),
-        ),
+  Future<void> openAddTransaction() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddTransactionScreen(),
       ),
-      builder: (context) => const AddTransactionSheet(),
     );
   }
 
@@ -60,7 +64,6 @@ class _MainNavigationState extends State<MainNavigation> {
         index: selectedIndex,
         children: screens,
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: openAddTransaction,
         backgroundColor: AppColors.primary,
@@ -70,16 +73,13 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
         child: const Icon(Icons.add, size: 28),
       ),
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
-
         onDestinationSelected: (index) {
           setState(() {
             selectedIndex = index;
           });
         },
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

@@ -1,5 +1,4 @@
-
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AppColors {
   static const background = Color(0xFF0B0F14);
@@ -19,33 +18,69 @@ class AppColors {
 
 class AppTheme {
   static ThemeData get darkTheme {
+    return _buildTheme(
+      brightness: Brightness.dark,
+      background: AppColors.background,
+      surface: AppColors.surface,
+      surfaceLight: AppColors.surfaceLight,
+      text: AppColors.textPrimary,
+      secondaryText: AppColors.textSecondary,
+    );
+  }
+
+  static ThemeData get lightTheme {
+    return _buildTheme(
+      brightness: Brightness.light,
+      background: const Color(0xFFF5F7FA),
+      surface: Colors.white,
+      surfaceLight: const Color(0xFFEDF1F5),
+      text: const Color(0xFF17202A),
+      secondaryText: const Color(0xFF687482),
+    );
+  }
+
+  static ThemeData _buildTheme({
+    required Brightness brightness,
+    required Color background,
+    required Color surface,
+    required Color surfaceLight,
+    required Color text,
+    required Color secondaryText,
+  }) {
+    final isDark = brightness == Brightness.dark;
+
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.background,
+      brightness: brightness,
+      scaffoldBackgroundColor: background,
 
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        brightness: brightness,
         primary: AppColors.primary,
         secondary: AppColors.secondary,
-        surface: AppColors.surface,
+        surface: surface,
         error: AppColors.expense,
       ),
 
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: text,
         elevation: 0,
         centerTitle: false,
       ),
 
-      cardColor: AppColors.surface,
+      cardColor: surface,
+
+      dividerColor: isDark ? AppColors.border : const Color(0xFFE1E6EC),
+
+      textTheme: ThemeData(brightness: brightness).textTheme
+          .apply(bodyColor: text, displayColor: text),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceLight,
-        hintStyle: const TextStyle(
-          color: AppColors.textSecondary,
-        ),
+        fillColor: surfaceLight,
+        hintStyle: TextStyle(color: secondaryText),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -53,10 +88,10 @@ class AppTheme {
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: surface,
         indicatorColor: AppColors.primary.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 11),
+          TextStyle(fontSize: 11, color: text),
         ),
       ),
     );

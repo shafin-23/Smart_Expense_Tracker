@@ -1,6 +1,7 @@
-import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/transaction_model.dart';
 import '../core/providers/database_provider.dart';
 import '../core/database/app_database.dart' as db;
@@ -15,22 +16,27 @@ class TransactionNotifier extends Notifier<List<TransactionModel>> {
   List<TransactionModel> build() {
     final dao = ref.watch(transactionDaoProvider);
 
-    // Database থেকে real-time transaction update
-    final subscription = dao.watchTransactions().listen((transactions) {
-      state = transactions.map(_toModel).toList();
-    });
+    final subscription = dao.watchTransactions().listen(
+          (transactions) {
+        debugPrint(
+          'TRANSACTION STREAM: ${transactions.length} records received',
+        );
+
+        state = transactions.map(_toModel).toList();
+      },
+      onError: (error, stackTrace) {
+        debugPrint('TRANSACTION STREAM ERROR: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      },
+    );
 
     ref.onDispose(() {
       subscription.cancel();
     });
 
-    // Database empty হলে demo data insert করবে
-    unawaited(_seedIfEmpty(dao));
-
     return [];
   }
 
-  // Drift Transaction কে TransactionModel-এ convert
   TransactionModel _toModel(db.Transaction transaction) {
     return TransactionModel(
       id: transaction.id.toString(),
@@ -42,67 +48,27 @@ class TransactionNotifier extends Notifier<List<TransactionModel>> {
     );
   }
 
-  // Database empty হলে sample data
-  Future<void> _seedIfEmpty(dynamic dao) async {
-    final existingTransactions = await dao.getAllTransactions();
-
-    if (existingTransactions.isNotEmpty) return;
-
-    final now = DateTime.now();
-
-    final sampleTransactions = [
-      TransactionModel(
-        id: '1',
-        title: 'Salary',
-        category: 'Income',
-        amount: 35000,
-        date: now,
-        isIncome: true,
-      ),
-      TransactionModel(
-        id: '2',
-        title: 'Grocery Shopping',
-        category: 'Shopping',
-        amount: 2500,
-        date: now,
-        isIncome: false,
-      ),
-      TransactionModel(
-        id: '3',
-        title: 'Netflix Subscription',
-        category: 'Entertainment',
-        amount: 650,
-        date: now,
-        isIncome: false,
-      ),
-      TransactionModel(
-        id: '4',
-        title: 'Freelance Project',
-        category: 'Income',
-        amount: 5000,
-        date: now,
-        isIncome: true,
-      ),
-      TransactionModel(
-        id: '5',
-        title: 'Restaurant',
-        category: 'Food',
-        amount: 1200,
-        date: now,
-        isIncome: false,
-      ),
-    ];
-
-    for (final transaction in sampleTransactions) {
-      await addTransaction(transaction);
-    }
-  }
-
-  // Add transaction
-  Future<void> addTransaction(TransactionModel transaction) async {
+  Future<void> _refreshTransactions() async {
     final dao = ref.read(transactionDaoProvider);
 
-    await dao.addTransaction(
+    final transactions = await dao.getAllTransactions();
+
+    debugPrint(
+      'DATABASE REFRESH: ${transactions.length} records found',
+    );
+
+    state = transactions.map(_toModel).toList();
+  }
+
+  Future<void> addTransaction(
+      TransactionModel transaction,
+      ) async {
+    final dao = ref.read(transactionDaoProvider);
+
+    debugPrint('ADDING TRANSACTION: ${transaction.title}');
+    debugPrint('TYPE: ${transaction.isIncome ? 'income' : 'expense'}');
+
+    final id = await dao.addTransaction(
       db.TransactionsCompanion.insert(
         title: transaction.title,
         amount: transaction.amount,
@@ -111,31 +77,54 @@ class TransactionNotifier extends Notifier<List<TransactionModel>> {
         date: transaction.date,
       ),
     );
+
+    debugPrint('INSERT SUCCESS. ID: $id');
+
+    await _refreshTransactions();
   }
 
-  // Delete transaction
   Future<void> deleteTransaction(String id) async {
     final transactionId = int.tryParse(id);
 
-    if (transactionId == null) return;
+    if (transactionId == null) {
+      debugPrint('DELETE ERROR: Invalid ID $id');
+      return;
+    }
 
     final dao = ref.read(transactionDaoProvider);
 
+    final deletedCount =
     await dao.deleteTransaction(transactionId);
+
+    debugPrint('DELETED RECORDS: $deletedCount');
+
+    await _refreshTransactions();
   }
 
-  // Update transaction
-  Future<void> updateTransaction(TransactionModel updated) async {
+  Future<void> updateTransaction(
+      TransactionModel updated,
+      ) async {
     final transactionId = int.tryParse(updated.id);
 
-    if (transactionId == null) return;
+    if (transactionId == null) {
+      debugPrint('UPDATE ERROR: Invalid ID ${updated.id}');
+      return;
+    }
 
     final dao = ref.read(transactionDaoProvider);
+
     final transactions = await dao.getAllTransactions();
 
-    final existing = transactions.firstWhere(
+    final index = transactions.indexWhere(
           (transaction) => transaction.id == transactionId,
     );
+
+    if (index == -1) {
+      debugPrint('UPDATE ERROR: Transaction not found');
+      return;
+    }
+
+    final existing = transactions[index];
 
     await dao.updateTransaction(
       existing.copyWith(
@@ -146,5 +135,9 @@ class TransactionNotifier extends Notifier<List<TransactionModel>> {
         date: updated.date,
       ),
     );
+
+    debugPrint('UPDATE SUCCESS: ${updated.title}');
+
+    await _refreshTransactions();
   }
 }
